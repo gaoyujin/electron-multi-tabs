@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>多标签浏览器</title>
+  <meta http-equiv="Content-Security-Policy" 
+    content="default-src 'self';
+             script-src 'self';
+             style-src 'self' 'unsafe-inline';
+             img-src 'self' data: https:;
+             connect-src 'self' https:;
+             font-src 'self' https:;
+             object-src 'none';
+             base-uri 'self';
+             form-action 'self';
+             frame-src 'self' https:;
+             child-src 'self' https:;
+             worker-src 'none';">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      background: #dee1e6;
+    }
+    
+    /* 修改标签栏容器样式 */
+    .tabs-container {
+      display: flex;
+      align-items: flex-end;
+      height: 40px;
+      background: #dee1e6;
+      padding: 0;
+      -webkit-app-region: drag;
+      position: relative;
+    }
+
+    /* 修改标签滚动区域样式 */
+    .tabs-scroll {
+      display: flex;
+      align-items: flex-end;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex: 1;
+      height: 100%;
+      margin: 0 32px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      -webkit-app-region: no-drag;
+    }
+
+    /* 隐藏滚动条 */
+    .tabs-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    #tabs {
+      display: flex;
+      align-items: flex-end;
+      height: 100%;
+      padding: 0;
+      margin-top: 6px;
+    }
+    
+    /* 修改标签样式 */
+    .tab {
+      position: relative;
+      height: 34px;
+      background: #f1f3f4;
+      margin-left: -5px;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      padding-right: 30px;
+      min-width: 100px;
+      max-width: 160px;
+      transition: all 0.1s ease-out;
+      -webkit-app-region: no-drag;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    .tab::before,
+    .tab::after {
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      bottom: 0;
+      background: transparent;
+    }
+
+    .tab::before {
+      left: -8px;
+      border-bottom-right-radius: 8px;
+      box-shadow: 4px 4px 0 4px #f1f3f4;
+    }
+
+    .tab::after {
+      right: -8px;
+      border-bottom-left-radius: 8px;
+      box-shadow: -4px 4px 0 4px #f1f3f4;
+    }
+
+    .tab:hover {
+      background: #f8f9fa;
+    }
+
+    .tab:hover::before {
+      box-shadow: 4px 4px 0 4px #f8f9fa;
+    }
+
+    .tab:hover::after {
+      box-shadow: -4px 4px 0 4px #f8f9fa;
+    }
+
+    .tab.active {
+      background: #fff;
+      z-index: 2;
+      height: 34px;
+    }
+
+    .tab.active::before {
+      box-shadow: 4px 4px 0 4px #fff;
+    }
+
+    .tab.active::after {
+      box-shadow: -4px 4px 0 4px #fff;
+    }
+
+    .tab:first-child {
+      margin-left: 0;
+    }
+
+    /* 标签标题样式优化 */
+    .tab-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      color: #5f6368;
+      user-select: none;
+      line-height: 34px;
+      max-width: calc(100% - 20px);
+    }
+
+    .tab.active .tab-title {
+      color: #202124;
+    }
+
+    /* 关闭按钮样式优化 */
+    .close-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #5f6368;
+      font-size: 14px;
+      transition: all 0.1s ease-out;
+      opacity: 0;
+      background: transparent;
+    }
+
+    .tab:hover .close-btn {
+      opacity: 0.8;
+    }
+
+    .close-btn:hover {
+      background: #e8eaed;
+      opacity: 1;
+    }
+    
+    /* 新建标签按钮样式优化 */
+    #new-tab-btn {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      background: rgba(241, 243, 244, 0.8);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #5f6368;
+      font-size: 18px;
+      margin: 0 8px;
+      margin-bottom: 3px;
+      transition: all 0.1s ease-out;
+      -webkit-app-region: no-drag;
+    }
+
+    #new-tab-btn:hover {
+      background: #e8eaed;
+      color: #202124;
+    }
+
+    /* 滚动按钮样式优化 */
+    .scroll-button {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #5f6368;
+      font-size: 18px;
+      transition: all 0.1s ease-out;
+      -webkit-app-region: no-drag;
+      z-index: 3;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .scroll-button:hover {
+      background: #fff;
+      color: #202124;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .scroll-button.left {
+      left: 4px;
+    }
+
+    .scroll-button.right {
+      right: 4px;
+    }
+
+    /* 消息容器样式优化 */
+    #message-container {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      border-top: 1px solid #e8eaed;
+      backdrop-filter: blur(10px);
+    }
+    
+    #messages {
+      margin-bottom: 12px;
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 13px;
+      color: #5f6368;
+    }
+    
+    #message-input {
+      width: calc(100% - 100px);
+      padding: 8px 12px;
+      border: 1px solid #e8eaed;
+      border-radius: 4px;
+      margin-right: 8px;
+      font-size: 13px;
+    }
+    
+    #send-btn {
+      padding: 8px 16px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background-color 0.2s;
+    }
+    
+    #send-btn:hover {
+      background: #1557b0;
+    }
+    
+    /* 添加提示消息的样式 */
+    #tab-limit-toast {
+      position: fixed;
+      top: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      display: none;
+      z-index: 1000;
+    }
+
+    /* 添加加载动画样式 */
+    .tab-loading {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 0;
+      height: 2px;
+      background: #1a73e8;
+      transition: width 0.2s ease-out;
+      z-index: 3;
+    }
+
+    .tab-loading.active {
+      width: 100%;
+      animation: tab-loading 1s ease-in-out infinite;
+    }
+
+    @keyframes tab-loading {
+      0% {
+        transform: translateX(-100%);
+      }
+      100% {
+        transform: translateX(100%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="tabs-container">
+    <button class="scroll-button left" id="scroll-left">‹</button>
+    <div class="tabs-scroll">
+      <div id="tabs">
+        <!-- 将新建标签按钮移到这里，作为 tabs 的子元素 -->
+        <button id="new-tab-btn">+</button>
+      </div>
+    </div>
+    <button class="scroll-button right" id="scroll-right">›</button>
+  </div>
+
+  <div id="message-container">
+    <div id="messages"></div>
+    <input type="text" id="message-input" placeholder="输入消息...">
+    <button id="send-btn">发送</button>
+  </div>
+
+  <!-- 添加提示消息元素 -->
+  <div id="tab-limit-toast"></div>
+
+  <!-- 使用外部脚本文件 -->
+  <script src="renderer.js"></script>
+</body>
+</html>

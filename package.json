@@ -1,0 +1,16 @@
+{
+  "name": "electron-multi-tabs",
+  "version": "1.0.0",
+  "description": "Electron multi-tab browser",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "volta": {
+    "node": "20.12.0"
+  },
+  "packageManager": "pnpm@8.6.2",
+  "devDependencies": {
+    "electron": "^33.2.1"
+  }
+}
